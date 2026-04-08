@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Candidate Evaluator — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #F7F8FA; color: #111827; }
+
+  header {
+    background: #0F1117;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: -0.2px; }
+  header span { color: #6B7280; font-size: 13px; }
+
+  .container { max-width: 800px; margin: 32px auto; padding: 0 20px; }
+
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .candidate-info h2 { font-size: 15px; font-weight: 600; color: #111827; }
+  .candidate-info p { font-size: 13px; color: #6B7280; margin-top: 2px; }
+
+  .right-meta { text-align: right; }
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge-pass { background: #DCFCE7; color: #16A34A; }
+  .badge-fail { background: #FEE2E2; color: #DC2626; }
+
+  .score { font-size: 26px; font-weight: 700; color: #111827; margin-top: 6px; }
+  .score span { font-size: 14px; font-weight: 400; color: #9CA3AF; }
+  .timestamp { font-size: 12px; color: #9CA3AF; margin-top: 4px; }
+
+  .divider { height: 1px; background: #F3F4F6; margin: 18px 0; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #9CA3AF;
+    margin-bottom: 12px;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 9px;
+  }
+  .bar-label { font-size: 12px; color: #6B7280; width: 160px; flex-shrink: 0; }
+  .bar-track { flex: 1; background: #F3F4F6; border-radius: 4px; height: 6px; }
+  .bar-fill { height: 6px; border-radius: 4px; background: #6366F1; }
+  .bar-score { font-size: 12px; font-weight: 600; color: #374151; width: 28px; text-align: right; flex-shrink: 0; }
+
+  .signals { display: flex; gap: 24px; margin-top: 4px; }
+  .signal-group { flex: 1; }
+  .signal-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .dot-green { background: #22C55E; }
+  .dot-red { background: #EF4444; }
+
+  blockquote {
+    background: #F9FAFB;
+    border-left: 3px solid #E5E7EB;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: 13px;
+    color: #6B7280;
+    line-height: 1.6;
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  .fail-reason {
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #92400E;
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+  .fail-reason strong { display: block; margin-bottom: 3px; color: #78350F; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .inbound-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #9CA3AF;
+    user-select: none;
+    margin-top: 4px;
+  }
+  .inbound-toggle:hover { color: #6B7280; }
+  .inbound-toggle .chevron { transition: transform 0.2s; font-style: normal; }
+  .inbound-toggle.open .chevron { transform: rotate(90deg); }
+
+  .inbound-content {
+    display: none;
+    margin-top: 12px;
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .inbound-content.visible { display: block; }
+
+  .inbound-row { display: flex; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+  .inbound-row:last-child { margin-bottom: 0; }
+  .inbound-key { color: #9CA3AF; width: 80px; flex-shrink: 0; font-size: 12px; }
+  .inbound-val { color: #374151; line-height: 1.5; }
+  .inbound-body { color: #6B7280; font-size: 12px; line-height: 1.6; white-space: pre-wrap; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 4px;
+  }
+  .pill-green { background: #DCFCE7; color: #16A34A; }
+  .pill-red { background: #FEE2E2; color: #DC2626; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Candidate Evaluator — Admin</h1>
+  <span>3 applications processed</span>
+</header>
+
+<div class="container">
+
+  <!-- PASS Card -->
+  <div class="card">
+    <div class="card-header">
+      <div class="candidate-info">
+        <h2>Alex Chen</h2>
+        <p>alex.chen@gmail.com</p>
+      </div>
+      <div class="right-meta">
+        <span class="badge badge-pass">Pass</span>
+        <div class="score">74.5 <span>/ 100</span></div>
+        <div class="timestamp">Apr 8, 2026 · 14:32</div>
+      </div>
+    </div>
+
+    <div class="section-label">Dimension Scores</div>
+    <div class="bar-row"><span class="bar-label">Shipped Products (30%)</span><div class="bar-track"><div class="bar-fill" style="width:80%"></div></div><span class="bar-score">80</span></div>
+    <div class="bar-row"><span class="bar-label">Technical Depth (25%)</span><div class="bar-track"><div class="bar-fill" style="width:75%"></div></div><span class="bar-score">75</span></div>
+    <div class="bar-row"><span class="bar-label">Business Thinking (20%)</span><div class="bar-track"><div class="bar-fill" style="width:70%"></div></div><span class="bar-score">70</span></div>
+    <div class="bar-row"><span class="bar-label">Speed of Execution (15%)</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><span class="bar-score">72</span></div>
+    <div class="bar-row"><span class="bar-label">Communication (10%)</span><div class="bar-track"><div class="bar-fill" style="width:65%"></div></div><span class="bar-score">65</span></div>
+
+    <div class="divider"></div>
+
+    <div class="signals">
+      <div class="signal-group">
+        <div class="section-label">Standout</div>
+        <div class="signal-item"><span class="dot dot-green"></span>3 live products with real users</div>
+        <div class="signal-item"><span class="dot dot-green"></span>Active GitHub — 140 events in 90 days</div>
+      </div>
+      <div class="signal-group">
+        <div class="section-label">Weak Signals</div>
+        <div class="signal-item"><span class="dot dot-red"></span>Limited business metrics mentioned</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Email Sent</div>
+    <blockquote>Alex, your GitHub activity and three deployed projects show a consistent pattern of shipping — exactly what we look for. Your technical breadth across Python and TypeScript is a strong signal. Someone from the team will reach out within 2 business days.</blockquote>
+
+    <div class="divider"></div>
+
+    <div class="inbound-toggle" onclick="toggleInbound(this)">
+      <span class="chevron">▶</span> Inbound Email
+    </div>
+    <div class="inbound-content">
+      <div class="inbound-row"><span class="inbound-key">From</span><span class="inbound-val">Alex Chen &lt;alex.chen@gmail.com&gt;</span></div>
+      <div class="inbound-row"><span class="inbound-key">Subject</span><span class="inbound-val">Application to Plum Builder's Residency</span></div>
+      <div class="inbound-row"><span class="inbound-key">Detected</span><span class="inbound-val">
+        <span class="pill pill-green">✓ Resume PDF</span>
+        <span class="pill pill-green">✓ GitHub</span>
+        <span class="pill pill-green">✓ Portfolio</span>
+      </span></div>
+      <div class="inbound-row"><span class="inbound-key">Body</span></div>
+      <div class="inbound-body">Hi, I'd like to apply to the Plum Builder's Residency.
+
+GitHub: https://github.com/alexchen
+Portfolio: https://alexchen.dev
+
+I've been building developer tools for the past 3 years. Shipped 3 products with paying users. Attached my resume. Looking forward to hearing from you.</div>
+    </div>
+  </div>
+
+  <!-- FAIL Card -->
+  <div class="card">
+    <div class="card-header">
+      <div class="candidate-info">
+        <h2>Vishvesh Pandya</h2>
+        <p>vishveshpandya245@gmail.com</p>
+      </div>
+      <div class="right-meta">
+        <span class="badge badge-fail">Fail</span>
+        <div class="score">49.4 <span>/ 100</span></div>
+        <div class="timestamp">Apr 8, 2026 · 19:49</div>
+      </div>
+    </div>
+
+    <div class="section-label">Dimension Scores</div>
+    <div class="bar-row"><span class="bar-label">Shipped Products (30%)</span><div class="bar-track"><div class="bar-fill" style="width:35%"></div></div><span class="bar-score">35</span></div>
+    <div class="bar-row"><span class="bar-label">Technical Depth (25%)</span><div class="bar-track"><div class="bar-fill" style="width:45%"></div></div><span class="bar-score">45</span></div>
+    <div class="bar-row"><span class="bar-label">Business Thinking (20%)</span><div class="bar-track"><div class="bar-fill" style="width:75%"></div></div><span class="bar-score">75</span></div>
+    <div class="bar-row"><span class="bar-label">Speed of Execution (15%)</span><div class="bar-track"><div class="bar-fill" style="width:50%"></div></div><span class="bar-score">50</span></div>
+    <div class="bar-row"><span class="bar-label">Communication (10%)</span><div class="bar-track"><div class="bar-fill" style="width:70%"></div></div><span class="bar-score">70</span></div>
+
+    <div class="divider"></div>
+
+    <div class="signals">
+      <div class="signal-group">
+        <div class="section-label">Standout</div>
+        <div class="signal-item"><span class="dot dot-green"></span>Strong PM track record, 4+ years</div>
+        <div class="signal-item"><span class="dot dot-green"></span>₹4.2Cr revenue impact at Zomato</div>
+      </div>
+      <div class="signal-group">
+        <div class="section-label">Weak Signals</div>
+        <div class="signal-item"><span class="dot dot-red"></span>No live personal projects with real users</div>
+        <div class="signal-item"><span class="dot dot-red"></span>GitHub mostly inactive, 0-star repos</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Rejection Reason</div>
+    <div class="fail-reason">
+      <strong>Why rejected</strong>
+      The residency requires candidates who personally build and ship code to real users. Personal GitHub projects show no verifiable live deployments or user traction — strong PM background but not yet evidence of independent builder capability.
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Email Sent</div>
+    <blockquote>Vishvesh, your PM track record is impressive — the business impact at Zomato and Noon Minutes shows strong product thinking. However, we're looking for candidates who personally ship and deploy code to real users, and your personal projects don't yet show live deployments or user traction.</blockquote>
+
+    <div class="divider"></div>
+
+    <div class="inbound-toggle" onclick="toggleInbound(this)">
+      <span class="chevron">▶</span> Inbound Email
+    </div>
+    <div class="inbound-content">
+      <div class="inbound-row"><span class="inbound-key">From</span><span class="inbound-val">Vishvesh Pandya &lt;vishveshpandya245@gmail.com&gt;</span></div>
+      <div class="inbound-row"><span class="inbound-key">Subject</span><span class="inbound-val">Application to Plum Builder's Residency</span></div>
+      <div class="inbound-row"><span class="inbound-key">Detected</span><span class="inbound-val">
+        <span class="pill pill-green">✓ Resume PDF</span>
+        <span class="pill pill-green">✓ GitHub</span>
+        <span class="pill pill-red">✗ Portfolio</span>
+      </span></div>
+      <div class="inbound-row"><span class="inbound-key">Body</span></div>
+      <div class="inbound-body">Hi, applying for the Builder's Residency.
+
+GitHub: https://github.com/vishvesh245
+
+Please find my resume attached. Thanks.</div>
+    </div>
+  </div>
+
+</div>
+<script>
+  function toggleInbound(el) {
+    el.classList.toggle('open');
+    const content = el.nextElementSibling;
+    content.classList.toggle('visible');
+  }
+</script>
+</body>
+</html>

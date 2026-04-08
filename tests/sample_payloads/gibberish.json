@@ -1,0 +1,11 @@
+{
+  "FromFull": {
+    "Email": "random@gmail.com",
+    "Name": "Random Person"
+  },
+  "Subject": "Hello??",
+  "TextBody": "asdfghjkl qwerty 12345 random text with no meaning whatsoever",
+  "HtmlBody": "",
+  "Attachments": [],
+  "MessageID": "test-gibberish-001"
+}

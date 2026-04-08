@@ -1,0 +1,11 @@
+{
+  "FromFull": {
+    "Email": "no.github@gmail.com",
+    "Name": "Chris Dev"
+  },
+  "Subject": "Builder Residency Application",
+  "TextBody": "Hello,\n\nI'd like to apply. My portfolio is at https://chrisdev.io\n\nPlease find my resume attached.",
+  "HtmlBody": "",
+  "Attachments": [],
+  "MessageID": "test-missing-github-001"
+}

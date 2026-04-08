@@ -1,0 +1,11 @@
+{
+  "FromFull": {
+    "Email": "strong.candidate@gmail.com",
+    "Name": "Alex Builder"
+  },
+  "Subject": "Application to Plum Builder's Residency",
+  "TextBody": "Hi,\n\nI'd like to apply to the Plum Builder's Residency.\n\nGitHub: https://github.com/torvalds\nPortfolio: https://vishvesh.me\n\nI've attached my resume. Looking forward to hearing from you.",
+  "HtmlBody": "",
+  "Attachments": [],
+  "MessageID": "test-strong-001"
+}

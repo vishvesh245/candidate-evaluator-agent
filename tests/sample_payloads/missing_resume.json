@@ -1,0 +1,11 @@
+{
+  "FromFull": {
+    "Email": "no.resume@gmail.com",
+    "Name": "Sam Applicant"
+  },
+  "Subject": "Applying for the residency",
+  "TextBody": "Hi, I want to apply!\n\nGitHub: https://github.com/sindresorhus\nPortfolio: https://sindresorhus.com\n\nI forgot to attach my resume, will send it later.",
+  "HtmlBody": "",
+  "Attachments": [],
+  "MessageID": "test-missing-resume-001"
+}

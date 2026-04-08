@@ -1,0 +1,11 @@
+{
+  "FromFull": {
+    "Email": "strong.candidate@gmail.com",
+    "Name": "Alex Builder"
+  },
+  "Subject": "Applying again!",
+  "TextBody": "Hi, I'm applying again. GitHub: https://github.com/torvalds\nPortfolio: https://vishvesh.me",
+  "HtmlBody": "",
+  "Attachments": [],
+  "MessageID": "test-duplicate-001"
+}

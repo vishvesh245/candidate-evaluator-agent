@@ -116,12 +116,7 @@ async def process_application(payload: dict):
             f"── Weighted total: {evaluation.weighted_total} → {evaluation.decision.upper()}"
         )
 
-        # 7. Send response and save
-        if evaluation.decision == "pass":
-            await send_pass_email(application, evaluation)
-        else:
-            await send_fail_email(application, evaluation)
-
+        # 7. Save to DB first — decouple from email delivery
         await database.save_application(
             email=application.sender_email,
             sender_name=application.sender_name,
@@ -134,8 +129,17 @@ async def process_application(payload: dict):
             portfolio_url=application.portfolio_url,
             has_resume=True,
         )
+        logger.info(f"── Saved to DB: {application.sender_email} → {evaluation.decision.upper()} ({evaluation.weighted_total}/100)")
 
-        logger.info(f"── DONE: {application.sender_email} → {evaluation.decision.upper()} ({evaluation.weighted_total}/100) | Email sent ✓")
+        # 8. Send response email — log failure but don't crash
+        try:
+            if evaluation.decision == "pass":
+                await send_pass_email(application, evaluation)
+            else:
+                await send_fail_email(application, evaluation)
+            logger.info(f"── DONE: Email sent to {application.sender_email} ✓")
+        except Exception as email_err:
+            logger.error(f"── EMAIL DELIVERY FAILED for {application.sender_email}: {email_err} — evaluation saved, email not sent")
 
     except Exception as e:
         logger.exception(f"Unhandled error processing application: {e}")

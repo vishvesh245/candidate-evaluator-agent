@@ -16,6 +16,7 @@ class ParsedApplication(BaseModel):
     subject: str
     body_text: str
     resume_attachment: Optional[Attachment] = None
+    non_pdf_attachment_name: Optional[str] = None  # e.g. "resume.docx"
     github_url: Optional[str] = None
     portfolio_url: Optional[str] = None
     message_id: str = ""
@@ -23,7 +24,14 @@ class ParsedApplication(BaseModel):
     def get_missing_fields(self) -> list[str]:
         missing = []
         if not self.resume_attachment:
-            missing.append("resume (PDF attachment)")
+            if self.non_pdf_attachment_name:
+                ext = self.non_pdf_attachment_name.rsplit(".", 1)[-1].upper() if "." in self.non_pdf_attachment_name else "unsupported format"
+                missing.append(
+                    f"resume as a PDF file — we received your attachment ({self.non_pdf_attachment_name}) "
+                    f"but {ext} files aren't supported. Please re-export your resume as a PDF from Word or Google Docs."
+                )
+            else:
+                missing.append("resume (PDF attachment)")
         if not self.github_url:
             missing.append("GitHub profile link")
         return missing

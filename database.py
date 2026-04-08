@@ -23,9 +23,11 @@ async def init_db():
 
 
 async def is_duplicate(email: str) -> bool:
+    """Only block if already evaluated (pass/fail), not if previously incomplete."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT id FROM applications WHERE email = ?", (email.lower(),)
+            "SELECT id FROM applications WHERE email = ? AND status IN ('pass', 'fail')",
+            (email.lower(),),
         ) as cursor:
             row = await cursor.fetchone()
             return row is not None

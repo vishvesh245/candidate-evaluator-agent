@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from datetime import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks, Request, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -43,6 +44,7 @@ def looks_like_application(body_text: str) -> bool:
 
 async def process_application(payload: dict):
     try:
+        received_at = datetime.utcnow().isoformat()
         application = parse_inbound_email(payload)
         logger.info(f"── Inbound email from {application.sender_email} | Subject: {application.subject!r}")
 
@@ -72,6 +74,7 @@ async def process_application(payload: dict):
                 github_url=application.github_url,
                 portfolio_url=application.portfolio_url,
                 has_resume=application.resume_attachment is not None,
+                received_at=received_at,
             )
             return
 
@@ -89,6 +92,7 @@ async def process_application(payload: dict):
                 github_url=application.github_url,
                 portfolio_url=application.portfolio_url,
                 has_resume=True,
+                received_at=received_at,
             )
             return
 
@@ -138,6 +142,7 @@ async def process_application(payload: dict):
             github_url=application.github_url,
             portfolio_url=application.portfolio_url,
             has_resume=True,
+            received_at=received_at,
         )
         logger.info(f"── Saved to DB: {application.sender_email} → {evaluation.decision.upper()} ({evaluation.weighted_total}/100)")
 
@@ -195,6 +200,23 @@ async def list_applications():
         badge_label = status.upper()
         score_display = f"{app_row['score']:.1f}" if app_row.get("score") else "—"
         created_at = app_row.get("created_at", "")[:16].replace("T", " · ")
+
+        # Response time
+        response_time_display = ""
+        received_at_str = app_row.get("received_at")
+        created_at_str = app_row.get("created_at")
+        if received_at_str and created_at_str:
+            try:
+                from datetime import timezone
+                t1 = datetime.fromisoformat(received_at_str)
+                t2 = datetime.fromisoformat(created_at_str)
+                delta_seconds = int((t2 - t1).total_seconds())
+                if delta_seconds < 60:
+                    response_time_display = f"⚡ {delta_seconds}s response"
+                else:
+                    response_time_display = f"⚡ {delta_seconds // 60}m {delta_seconds % 60}s response"
+            except Exception:
+                pass
 
         # Dimension bars
         bars_html = ""
@@ -293,6 +315,7 @@ async def list_applications():
               <span class="badge {badge_class}">{badge_label}</span>
               <div class="score">{score_display} <span>/ 100</span></div>
               <div class="timestamp">{created_at}</div>
+              {"<div class='response-time'>" + response_time_display + "</div>" if response_time_display else ""}
             </div>
           </div>
           {"<div class='section-label'>Dimension Scores</div>" + bars_html if bars_html else ""}
@@ -339,6 +362,7 @@ async def list_applications():
   .score {{ font-size: 26px; font-weight: 700; color: #111827; margin-top: 6px; }}
   .score span {{ font-size: 14px; font-weight: 400; color: #9CA3AF; }}
   .timestamp {{ font-size: 12px; color: #9CA3AF; margin-top: 4px; }}
+  .response-time {{ font-size: 11px; color: #6366F1; font-weight: 600; margin-top: 3px; }}
   .divider {{ height: 1px; background: #F3F4F6; margin: 18px 0; }}
   .section-label {{ font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: #9CA3AF; margin-bottom: 12px; }}
   .bar-row {{ display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }}

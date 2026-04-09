@@ -21,6 +21,7 @@ async def init_db():
                 github_url TEXT,
                 portfolio_url TEXT,
                 has_resume INTEGER DEFAULT 0,
+                received_at TEXT,
                 created_at TEXT NOT NULL
             )
         """)
@@ -49,13 +50,14 @@ async def save_application(
     github_url: Optional[str] = None,
     portfolio_url: Optional[str] = None,
     has_resume: bool = False,
+    received_at: Optional[str] = None,
 ):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
             INSERT OR REPLACE INTO applications
-              (email, sender_name, status, score, result_json, subject, body_text, github_url, portfolio_url, has_resume, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              (email, sender_name, status, score, result_json, subject, body_text, github_url, portfolio_url, has_resume, received_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 email.lower(),
@@ -68,6 +70,7 @@ async def save_application(
                 github_url,
                 portfolio_url,
                 1 if has_resume else 0,
+                received_at,
                 datetime.utcnow().isoformat(),
             ),
         )

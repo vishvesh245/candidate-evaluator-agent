@@ -1,5 +1,7 @@
 import base64
 import io
+import re
+import httpx
 import pdfplumber
 from typing import Optional
 from models.schemas import Attachment
@@ -138,3 +140,70 @@ async def parse_resume(attachment: Attachment) -> tuple[str, Optional[str]]:
 
     # Scanned PDF — use Claude Vision
     return await _extract_via_claude(file_bytes, "application/pdf", attachment.name)
+
+
+def _normalise_cloud_url(url: str) -> str:
+    """Convert cloud sharing URLs to direct download URLs where possible."""
+    # Google Drive: /file/d/FILE_ID/view → uc?export=download&id=FILE_ID
+    gdrive_match = re.search(r"drive\.google\.com/file/d/([a-zA-Z0-9_-]+)", url)
+    if gdrive_match:
+        return f"https://drive.google.com/uc?export=download&id={gdrive_match.group(1)}"
+
+    # Google Docs export as PDF
+    gdocs_match = re.search(r"docs\.google\.com/document/d/([a-zA-Z0-9_-]+)", url)
+    if gdocs_match:
+        return f"https://docs.google.com/document/d/{gdocs_match.group(1)}/export?format=pdf"
+
+    # Dropbox: ?dl=0 → ?dl=1
+    if "dropbox.com" in url:
+        return re.sub(r"[?&]dl=0", "?dl=1", url)
+
+    # OneDrive: add download=1
+    if "1drv.ms" in url or "onedrive.live.com" in url:
+        sep = "&" if "?" in url else "?"
+        return f"{url}{sep}download=1"
+
+    return url
+
+
+async def fetch_cloud_resume(url: str) -> Optional[Attachment]:
+    """
+    Try to fetch a resume from a cloud link (Google Drive, Dropbox, OneDrive).
+    Returns an Attachment if the file is publicly accessible, None otherwise.
+    """
+    try:
+        download_url = _normalise_cloud_url(url)
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            resp = await client.get(download_url, headers={"User-Agent": "Mozilla/5.0"})
+
+        # Reject login pages or error responses
+        if resp.status_code != 200:
+            return None
+
+        content_type = resp.headers.get("content-type", "").lower()
+
+        # Reject HTML responses — means it's a login/permission page, not a file
+        if "text/html" in content_type:
+            return None
+
+        file_bytes = resp.content
+        if len(file_bytes) < 100:  # Too small to be a real resume
+            return None
+
+        # Guess content type and name
+        if "pdf" in content_type:
+            ct, name = "application/pdf", "resume.pdf"
+        elif "wordprocessingml" in content_type or "msword" in content_type:
+            ct, name = content_type, "resume.docx"
+        else:
+            ct, name = "application/pdf", "resume.pdf"  # optimistic default
+
+        return Attachment(
+            name=name,
+            content=base64.b64encode(file_bytes).decode("utf-8"),
+            content_type=ct,
+            content_length=len(file_bytes),
+        )
+
+    except Exception:
+        return None

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 
 import database
 from services.email_parser import parse_inbound_email
-from services.resume_parser import parse_resume
+from services.resume_parser import parse_resume, fetch_cloud_resume
 from services.github_extractor import extract_github_signals
 from services.portfolio_scraper import scrape_portfolio
 from services.evaluator import evaluate_candidate
@@ -60,7 +60,17 @@ async def process_application(payload: dict):
             await send_non_application_email(application)
             return
 
-        # 3. Missing fields check
+        # 3. Try to fetch resume from cloud link if no attachment
+        if not application.resume_attachment and application.cloud_resume_url:
+            logger.info(f"── Attempting to fetch cloud resume: {application.cloud_resume_url}")
+            fetched = await fetch_cloud_resume(application.cloud_resume_url)
+            if fetched:
+                logger.info(f"── Cloud resume fetched successfully ({fetched.content_length} bytes)")
+                application = application.model_copy(update={"resume_attachment": fetched, "cloud_resume_url": None})
+            else:
+                logger.info(f"── Cloud resume not accessible (private/gated)")
+
+        # 4. Missing fields check (after cloud fetch attempt)
         missing = application.get_missing_fields()
         if missing:
             logger.info(f"── INCOMPLETE from {application.sender_email} | Missing: {missing}")

@@ -67,14 +67,15 @@ After reviewing your application, we won't be moving forward at this time. {body
 
 We appreciate your interest and wish you the best in what you're building.
 
-— The Plum Team
+Best,
+The Plum Team
 """
 
     html = f"""<p>Hi {name},</p>
 <p>Thank you for taking the time to apply to the Plum Builder's Residency.</p>
 <p>After reviewing your application, we won't be moving forward at this time. {body}</p>
 <p>We appreciate your interest and wish you the best in what you're building.</p>
-<p>— The Plum Team</p>
+<p>Best,<br>The Plum Team</p>
 """
 
     await _send(application.sender_email, application.sender_name, subject, text, html)

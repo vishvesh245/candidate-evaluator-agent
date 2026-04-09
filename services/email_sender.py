@@ -57,13 +57,13 @@ async def send_fail_email(application: ParsedApplication, evaluation: Evaluation
     name = application.sender_name.split()[0] if application.sender_name else "there"
     subject = "Your application to Plum Builder's Residency"
 
-    fail_reason = evaluation.fail_reason or "Your profile doesn't match what we're looking for in this cohort."
+    body = evaluation.email_summary or "Your profile doesn't match what we're looking for in this cohort."
 
     text = f"""Hi {name},
 
 Thank you for taking the time to apply to the Plum Builder's Residency.
 
-After reviewing your application, we won't be moving forward at this time. {fail_reason}
+After reviewing your application, we won't be moving forward at this time. {body}
 
 We appreciate your interest and wish you the best in what you're building.
 
@@ -72,7 +72,7 @@ We appreciate your interest and wish you the best in what you're building.
 
     html = f"""<p>Hi {name},</p>
 <p>Thank you for taking the time to apply to the Plum Builder's Residency.</p>
-<p>After reviewing your application, we won't be moving forward at this time. {fail_reason}</p>
+<p>After reviewing your application, we won't be moving forward at this time. {body}</p>
 <p>We appreciate your interest and wish you the best in what you're building.</p>
 <p>— The Plum Team</p>
 """

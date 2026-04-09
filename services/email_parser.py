@@ -19,6 +19,27 @@ URL_PATTERN = re.compile(
 # Domains to exclude when detecting portfolio URL
 EXCLUDED_DOMAINS = {"github.com", "linkedin.com", "twitter.com", "x.com", "mailto:"}
 
+# Cloud storage domains that indicate a resume link instead of attachment
+CLOUD_RESUME_DOMAINS = (
+    "drive.google.com",
+    "docs.google.com",
+    "dropbox.com",
+    "1drv.ms",              # OneDrive short URL
+    "onedrive.live.com",
+    "icloud.com",
+    "box.com",
+    "notion.so",
+)
+
+
+def extract_cloud_resume_url(text: str) -> Optional[str]:
+    """Detect if candidate pasted a cloud storage link instead of attaching their resume."""
+    urls = URL_PATTERN.findall(text)
+    for url in urls:
+        if any(domain in url.lower() for domain in CLOUD_RESUME_DOMAINS):
+            return url.rstrip(".,;)")
+    return None
+
 
 def extract_github_url(text: str) -> Optional[str]:
     match = GITHUB_PATTERN.search(text)
@@ -118,6 +139,7 @@ def parse_inbound_email(payload: dict) -> ParsedApplication:
 
     attachments = payload.get("Attachments", [])
     resume_attachment = find_resume_attachment(attachments)
+    cloud_resume_url = extract_cloud_resume_url(full_text) if not resume_attachment else None
 
     return ParsedApplication(
         sender_email=sender_email.lower().strip(),
@@ -125,6 +147,7 @@ def parse_inbound_email(payload: dict) -> ParsedApplication:
         subject=subject,
         body_text=body_text,
         resume_attachment=resume_attachment,
+        cloud_resume_url=cloud_resume_url,
         github_url=github_url,
         portfolio_url=portfolio_url,
         message_id=payload.get("MessageID", ""),

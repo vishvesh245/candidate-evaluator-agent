@@ -16,6 +16,7 @@ class ParsedApplication(BaseModel):
     subject: str
     body_text: str
     resume_attachment: Optional[Attachment] = None
+    cloud_resume_url: Optional[str] = None  # e.g. Google Drive / Dropbox link instead of attachment
     github_url: Optional[str] = None
     portfolio_url: Optional[str] = None
     message_id: str = ""
@@ -23,7 +24,14 @@ class ParsedApplication(BaseModel):
     def get_missing_fields(self) -> list[str]:
         missing = []
         if not self.resume_attachment:
-            missing.append("resume (PDF, Word doc, or image of your resume)")
+            if self.cloud_resume_url:
+                missing.append(
+                    f"resume as a direct attachment — we found a link ({self.cloud_resume_url}) "
+                    f"but couldn't access the file. Please attach your resume directly to the email "
+                    f"(PDF, Word doc, or image) instead of sharing a link."
+                )
+            else:
+                missing.append("resume (PDF, Word doc, or image — attached directly to the email)")
         if not self.github_url:
             missing.append("GitHub profile link")
         return missing

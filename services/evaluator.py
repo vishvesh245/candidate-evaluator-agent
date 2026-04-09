@@ -90,7 +90,16 @@ async def evaluate_candidate(
             raw = raw[4:]
         raw = raw.strip()
 
-    data = json.loads(raw)
+    # Extract JSON if Claude added explanation text before/after
+    json_start = raw.find("{")
+    json_end = raw.rfind("}") + 1
+    if json_start != -1 and json_end > json_start:
+        raw = raw[json_start:json_end]
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Claude returned invalid JSON: {e}\nRaw output: {raw[:500]}")
 
     scores = EvaluationScores(**data["scores"])
     reasoning = EvaluationReasoning(**data["reasoning"])

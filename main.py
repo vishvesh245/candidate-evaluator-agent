@@ -114,12 +114,17 @@ async def process_application(payload: dict):
 
         # 6. Evaluate
         logger.info(f"── Running Claude evaluation for {application.sender_email}...")
-        evaluation = await evaluate_candidate(
-            candidate_name=application.sender_name,
-            resume_text=resume_text,
-            github_signals=github_signals,
-            portfolio_signals=portfolio_signals,
-        )
+        try:
+            evaluation = await evaluate_candidate(
+                candidate_name=application.sender_name,
+                resume_text=resume_text,
+                github_signals=github_signals,
+                portfolio_signals=portfolio_signals,
+            )
+        except Exception as eval_err:
+            logger.error(f"── EVALUATION FAILED for {application.sender_email}: {eval_err}")
+            await send_incomplete_email(application, ["We ran into a technical issue processing your application. Please re-submit and we'll try again."])
+            return
 
         s = evaluation.scores
         logger.info(

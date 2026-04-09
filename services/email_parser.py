@@ -4,11 +4,11 @@ from models.schemas import ParsedApplication, Attachment
 
 
 GITHUB_PATTERN = re.compile(
-    r"https?://(?:www\.)?github\.com/([a-zA-Z0-9_-]+)/?(?:\s|$|\"|\n|>)",
+    r"https?://(?:www\.)?github\.com/([a-zA-Z0-9_-]+)/?(?:\s|$|\"|\n|>|[.,;)])",
     re.IGNORECASE,
 )
 GITHUB_BARE_PATTERN = re.compile(
-    r"(?:^|\s)github\.com/([a-zA-Z0-9_-]+)/?(?:\s|$)",
+    r"(?:^|\s)github\.com/([a-zA-Z0-9_-]+)/?(?:\s|$|[.,;)])",
     re.IGNORECASE,
 )
 URL_PATTERN = re.compile(
@@ -101,9 +101,14 @@ def parse_inbound_email(payload: dict) -> ParsedApplication:
     body_text = payload.get("TextBody", "") or payload.get("HtmlBody", "")
 
     # Strip basic HTML tags if only HTML body
+    # First extract href URLs so links inside <a> tags aren't lost
     if not payload.get("TextBody") and payload.get("HtmlBody"):
+        href_urls = re.findall(r'href=["\']([^"\']+)["\']', body_text, re.IGNORECASE)
         body_text = re.sub(r"<[^>]+>", " ", body_text)
         body_text = re.sub(r"\s+", " ", body_text).strip()
+        # Append extracted hrefs so GitHub/portfolio URLs are still detectable
+        if href_urls:
+            body_text += " " + " ".join(href_urls)
 
     # Search both subject + body for links
     full_text = f"{subject}\n{body_text}"

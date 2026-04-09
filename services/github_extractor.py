@@ -77,39 +77,46 @@ async def extract_github_signals(github_url: str) -> GitHubSignals:
             except Exception:
                 pass
 
-        # Fetch repos
+        # Fetch repos — sort by stars to surface the most significant work first
         repos_resp = await client.get(
             f"{GITHUB_API}/users/{username}/repos",
             headers=headers,
-            params={"sort": "pushed", "per_page": 30, "type": "owner"},
+            params={"sort": "stars", "direction": "desc", "per_page": 100, "type": "owner"},
         )
         repos = repos_resp.json() if repos_resp.status_code == 200 else []
         if not isinstance(repos, list):
             repos = []
 
-        # Aggregate languages
+        # Aggregate languages + total stars
         language_counts: dict[str, int] = {}
         notable_repos = []
+        total_stars = 0
         for repo in repos:
+            stars = repo.get("stargazers_count", 0)
+            total_stars += stars
+
             if repo.get("fork"):
                 continue  # Skip forks for language signal
+
             lang = repo.get("language")
             if lang:
                 language_counts[lang] = language_counts.get(lang, 0) + 1
 
             # Notable repos: has description OR stars > 0
-            if repo.get("description") or (repo.get("stargazers_count", 0) > 0):
+            if repo.get("description") or stars > 0:
                 notable_repos.append(
                     {
                         "name": repo.get("name"),
                         "description": repo.get("description"),
-                        "stars": repo.get("stargazers_count", 0),
+                        "stars": stars,
                         "language": repo.get("language"),
                         "pushed_at": repo.get("pushed_at", ""),
                     }
                 )
 
         top_languages = sorted(language_counts, key=language_counts.get, reverse=True)[:5]
+        # Sort notable repos by stars descending
+        notable_repos.sort(key=lambda r: r["stars"], reverse=True)
 
         # Fetch recent public events (activity in last 90 days)
         events_resp = await client.get(
@@ -138,9 +145,10 @@ async def extract_github_signals(github_url: str) -> GitHubSignals:
             bio=user_data.get("bio"),
             public_repos=user_data.get("public_repos", 0),
             followers=user_data.get("followers", 0),
+            total_stars=total_stars,
             account_age_days=account_age_days,
             top_languages=top_languages,
             recent_activity_count=recent_activity,
             has_pinned_repos=False,  # Requires GraphQL; skip for now
-            notable_repos=notable_repos[:8],  # Cap at 8
+            notable_repos=notable_repos[:10],  # Top 10 by stars
         )

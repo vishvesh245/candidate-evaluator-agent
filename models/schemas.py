@@ -16,7 +16,6 @@ class ParsedApplication(BaseModel):
     subject: str
     body_text: str
     resume_attachment: Optional[Attachment] = None
-    non_pdf_attachment_name: Optional[str] = None  # e.g. "resume.docx"
     github_url: Optional[str] = None
     portfolio_url: Optional[str] = None
     message_id: str = ""
@@ -24,14 +23,7 @@ class ParsedApplication(BaseModel):
     def get_missing_fields(self) -> list[str]:
         missing = []
         if not self.resume_attachment:
-            if self.non_pdf_attachment_name:
-                ext = self.non_pdf_attachment_name.rsplit(".", 1)[-1].upper() if "." in self.non_pdf_attachment_name else "unsupported format"
-                missing.append(
-                    f"resume as a PDF file — we received your attachment ({self.non_pdf_attachment_name}) "
-                    f"but {ext} files aren't supported. Please re-export your resume as a PDF from Word or Google Docs."
-                )
-            else:
-                missing.append("resume (PDF attachment)")
+            missing.append("resume (PDF, Word doc, or image of your resume)")
         if not self.github_url:
             missing.append("GitHub profile link")
         return missing
@@ -42,11 +34,12 @@ class GitHubSignals(BaseModel):
     bio: Optional[str] = None
     public_repos: int = 0
     followers: int = 0
+    total_stars: int = 0  # sum of stars across all owned repos
     account_age_days: int = 0
     top_languages: list[str] = []
     recent_activity_count: int = 0  # commits/events in last 90 days
     has_pinned_repos: bool = False
-    notable_repos: list[dict] = []  # name, description, stars, language
+    notable_repos: list[dict] = []  # name, description, stars, language — sorted by stars
     error: Optional[str] = None
 
 
@@ -84,3 +77,4 @@ class EvaluationResult(BaseModel):
     email_summary: str
     fail_reason: Optional[str] = None
     decision: str  # "pass" or "fail"
+    technical_ownership: Optional[str] = None  # "direct", "indirect", "mixed", "unclear"

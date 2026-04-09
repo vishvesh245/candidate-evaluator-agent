@@ -76,10 +76,20 @@ async def process_application(payload: dict):
             return
 
         # 4. Parse resume
-        resume_text, resume_error = parse_resume(application.resume_attachment)
+        resume_text, resume_error = await parse_resume(application.resume_attachment)
         if resume_error:
             logger.warning(f"── RESUME ERROR for {application.sender_email}: {resume_error}")
             await send_incomplete_email(application, [resume_error])
+            await database.save_application(
+                email=application.sender_email,
+                sender_name=application.sender_name,
+                status="incomplete",
+                subject=application.subject,
+                body_text=application.body_text,
+                github_url=application.github_url,
+                portfolio_url=application.portfolio_url,
+                has_resume=True,
+            )
             return
 
         logger.info(f"── Resume parsed: {len(resume_text)} chars")
@@ -160,6 +170,19 @@ async def health():
     return {"status": "ok"}
 
 
+@app.post("/test/reset")
+async def test_reset():
+    """Delete all test email records so the eval suite starts clean each run."""
+    await database.delete_test_records()
+    return {"status": "reset"}
+
+
+@app.get("/applications/data")
+async def list_applications_json():
+    apps = await database.get_all_applications()
+    return {"count": len(apps), "applications": apps}
+
+
 @app.get("/applications", response_class=HTMLResponse)
 async def list_applications():
     apps = await database.get_all_applications()
@@ -205,6 +228,19 @@ async def list_applications():
               <div class="signal-group"><div class="section-label">Standout</div>{standout_items}</div>
               <div class="signal-group"><div class="section-label">Weak Signals</div>{weak_items}</div>
             </div>"""
+
+        # Technical ownership badge
+        ownership_html = ""
+        if result and result.get("technical_ownership"):
+            ow = result["technical_ownership"]
+            ow_styles = {
+                "direct":   ("pill-green",  "⚙ Direct builder"),
+                "indirect": ("pill-yellow", "📋 No direct build evidence"),
+                "mixed":    ("pill-blue",   "⚡ Mixed ownership"),
+                "unclear":  ("pill-gray",   "? Ownership unclear"),
+            }
+            ow_cls, ow_label = ow_styles.get(ow, ("pill-gray", ow))
+            ownership_html = f'<div class="divider"></div><div class="section-label">Builder Type</div><span class="pill {ow_cls}">{ow_label}</span>'
 
         # Fail reason
         fail_reason_html = ""
@@ -261,6 +297,7 @@ async def list_applications():
           </div>
           {"<div class='section-label'>Dimension Scores</div>" + bars_html if bars_html else ""}
           {signals_html}
+          {ownership_html}
           {fail_reason_html}
           {summary_html}
           {inbound_html}
@@ -331,6 +368,9 @@ async def list_applications():
   .pill {{ display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; margin-right: 4px; }}
   .pill-green {{ background: #DCFCE7; color: #16A34A; }}
   .pill-red {{ background: #FEE2E2; color: #DC2626; }}
+  .pill-yellow {{ background: #FEF3C7; color: #D97706; }}
+  .pill-blue {{ background: #DBEAFE; color: #2563EB; }}
+  .pill-gray {{ background: #F3F4F6; color: #6B7280; }}
 </style>
 </head>
 <body>

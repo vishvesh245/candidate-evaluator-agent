@@ -48,30 +48,48 @@ def extract_portfolio_url(text: str, github_url: Optional[str]) -> Optional[str]
     return None
 
 
-IGNORED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico"}  # inline images, skip silently
+IGNORED_EXTENSIONS = {".svg", ".ico"}  # tiny inline assets, skip silently
 
-def find_pdf_attachment(attachments: list[dict]) -> tuple[Optional[Attachment], Optional[str]]:
-    """Returns (pdf_attachment, non_pdf_name). non_pdf_name is set if a non-PDF file was found."""
-    pdf = None
-    non_pdf_name = None
+# Attachment types we'll treat as a resume
+RESUME_CONTENT_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp",
+    "text/plain",
+}
+RESUME_EXTENSIONS = {".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".txt", ".rtf"}
+
+
+def find_resume_attachment(attachments: list[dict]) -> Optional[Attachment]:
+    """
+    Returns the first attachment that looks like a resume.
+    Accepts PDF, DOCX/DOC, images, and plain text. Ignores decorative assets.
+    """
     for att in attachments:
         content_type = att.get("ContentType", "").lower()
         name = att.get("Name", "")
         name_lower = name.lower()
 
-        if "pdf" in content_type or name_lower.endswith(".pdf"):
-            pdf = Attachment(
-                name=name or "resume.pdf",
+        # Skip tiny inline decorative assets
+        if any(name_lower.endswith(ext) for ext in IGNORED_EXTENSIONS):
+            continue
+
+        is_resume_type = (
+            any(ct in content_type for ct in ("pdf", "msword", "wordprocessingml", "text/plain"))
+            or content_type in RESUME_CONTENT_TYPES
+            or any(name_lower.endswith(ext) for ext in RESUME_EXTENSIONS)
+        )
+
+        if is_resume_type:
+            return Attachment(
+                name=name or "resume",
                 content=att.get("Content", ""),
-                content_type=att.get("ContentType", "application/pdf"),
+                content_type=att.get("ContentType", "application/octet-stream"),
                 content_length=att.get("ContentLength", 0),
             )
-        elif not any(name_lower.endswith(ext) for ext in IGNORED_EXTENSIONS):
-            # Non-PDF, non-image attachment — likely a wrong resume format
-            if non_pdf_name is None:
-                non_pdf_name = name
 
-    return pdf, non_pdf_name
+    return None
 
 
 def parse_inbound_email(payload: dict) -> ParsedApplication:
@@ -94,7 +112,7 @@ def parse_inbound_email(payload: dict) -> ParsedApplication:
     portfolio_url = extract_portfolio_url(full_text, github_url)
 
     attachments = payload.get("Attachments", [])
-    resume_attachment, non_pdf_name = find_pdf_attachment(attachments)
+    resume_attachment = find_resume_attachment(attachments)
 
     return ParsedApplication(
         sender_email=sender_email.lower().strip(),
@@ -102,7 +120,6 @@ def parse_inbound_email(payload: dict) -> ParsedApplication:
         subject=subject,
         body_text=body_text,
         resume_attachment=resume_attachment,
-        non_pdf_attachment_name=non_pdf_name,
         github_url=github_url,
         portfolio_url=portfolio_url,
         message_id=payload.get("MessageID", ""),

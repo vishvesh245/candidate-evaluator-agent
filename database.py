@@ -74,6 +74,15 @@ async def save_application(
         await db.commit()
 
 
+async def delete_test_records():
+    """Remove all test records (emails matching test patterns) for a clean eval run."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "DELETE FROM applications WHERE email LIKE '%@test.com'"
+        )
+        await db.commit()
+
+
 async def get_all_applications() -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row

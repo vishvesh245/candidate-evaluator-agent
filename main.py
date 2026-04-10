@@ -134,6 +134,17 @@ async def process_application(payload: dict):
         except Exception as eval_err:
             logger.error(f"── EVALUATION FAILED for {application.sender_email}: {eval_err}")
             await send_incomplete_email(application, ["We ran into a technical issue processing your application. Please re-submit and we'll try again."])
+            await database.save_application(
+                email=application.sender_email,
+                sender_name=application.sender_name,
+                status="incomplete",
+                subject=application.subject,
+                body_text=application.body_text,
+                github_url=application.github_url,
+                portfolio_url=application.portfolio_url,
+                has_resume=True,
+                received_at=received_at,
+            )
             return
 
         s = evaluation.scores

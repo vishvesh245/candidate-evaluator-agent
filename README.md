@@ -1,30 +1,29 @@
 # Candidate Evaluator — Plum Builder's Residency
 
-An AI agent that evaluates job applications over email. Candidates send their resume, GitHub profile, and portfolio link. The agent extracts signals, scores them against a rubric, and replies with a pass or fail decision — automatically.
+An AI agent that evaluates job applications over email. Candidates send their resume, GitHub profile, and portfolio link to an inbound email address. The agent extracts signals, scores them against a rubric, and replies with a pass or fail decision — automatically, within 60 seconds.
 
 ---
 
 ## Architecture
 
-Inbound emails hit a Postmark inbound address, which fires a webhook to the FastAPI server (hosted on Railway). The server parses the email, extracts the PDF resume (pdfplumber), fetches GitHub signals (GitHub REST API), and scrapes the portfolio URL (httpx + BeautifulSoup) — all in parallel. Those signals are passed to Claude (claude-sonnet-4-6) which scores the candidate across five rubric dimensions and returns structured JSON. The server then sends a pass or fail email via Postmark outbound and logs the result to SQLite.
+Inbound emails arrive at a Postmark inbound address, which converts them into a JSON webhook and fires it at the FastAPI server hosted on Render. The server immediately returns `200` and hands off to a background task — so Postmark never times out regardless of how long evaluation takes. The background task runs three extractions in parallel: the resume is parsed via pdfplumber (text-based PDFs) or Claude Vision (scanned PDFs, images, DOCX); GitHub signals are pulled from the GitHub REST API; and the portfolio URL is scraped via httpx + BeautifulSoup. All three signal sets are passed to Claude (claude-sonnet-4-6), which scores the candidate across five rubric dimensions and returns structured JSON. The server saves the result to SQLite, then sends the reply via Brevo's transactional email API. If the email fails, the evaluation is already saved — they're decoupled.
 
 ```
 Candidate email
       ↓
-Postmark Inbound Webhook
+Postmark Inbound → webhook (JSON)
       ↓
-FastAPI (Railway)
+FastAPI on Render (returns 200 immediately)
       ↓
-Parallel extraction:
-  PDF → pdfplumber → resume text
-  GitHub URL → GitHub API → signals
-  Portfolio URL → httpx → page content
+Background task — parallel extraction:
+  ├── Resume (PDF/DOCX/image) → pdfplumber → text
+  │                           → Claude Vision (if scanned/image)
+  ├── GitHub URL → GitHub REST API → signals (repos, stars, followers, languages)
+  └── Portfolio URL → httpx + BeautifulSoup → page content
       ↓
-Claude API → structured JSON evaluation
+Claude claude-sonnet-4-6 → structured JSON evaluation
       ↓
-Postmark Outbound → reply to candidate
-      ↓
-SQLite → log result
+SQLite → save result        Brevo → reply to candidate
 ```
 
 ---
@@ -33,143 +32,139 @@ SQLite → log result
 
 | Layer | Choice | Why |
 |---|---|---|
-| Language | Python | Best LLM ecosystem, fast to build |
-| Web framework | FastAPI | Lightweight, async, ideal for webhooks |
-| Email (inbound) | Postmark Inbound | Parses emails into JSON webhooks — no IMAP polling needed |
-| Email (outbound) | Postmark SMTP | Same platform, reliable deliverability |
-| PDF parsing | pdfplumber | Best text extraction for text-based PDFs |
-| GitHub signals | GitHub REST API | Official API, no scraping fragility |
-| Portfolio scraping | httpx + BeautifulSoup | Lightweight, good enough for signal extraction |
-| AI evaluation | Claude claude-sonnet-4-6 | Best reasoning quality for nuanced builder evaluation |
-| Deployment | Railway | One-command deploy, always-on, env var management |
-| Storage | SQLite | Zero-config, sufficient for this scale |
+| Language | Python 3.9 | Best LLM ecosystem, fastest to build with |
+| Web framework | FastAPI | Async-native, background tasks built-in, minimal boilerplate |
+| Email inbound | Postmark | Converts raw SMTP to clean JSON webhooks — no IMAP polling, no parsing headaches |
+| Email outbound | Brevo | Transactional email with Gmail sender verification; Postmark restricts public domains for outbound |
+| PDF parsing | pdfplumber | Best-in-class text extraction for text-based PDFs, pure Python |
+| Scanned PDF / image resume | Claude Vision | Zero additional dependencies vs. tesseract/poppler; handles DOCX, images, scanned PDFs in one call |
+| GitHub signals | GitHub REST API | Official API, stable, no scraping fragility; fetches top 100 repos by stars for accurate signal |
+| Portfolio scraping | httpx + BeautifulSoup | Lightweight; sufficient for extracting text signal — not trying to render JS |
+| AI evaluation | Claude claude-sonnet-4-6 | Best reasoning quality for nuanced judgment; structured JSON output with retry-safe extraction |
+| Deployment | Render | Free tier with auto-deploy from GitHub push; zero config |
+| Storage | SQLite via aiosqlite | Zero setup, sufficient for this scale, async-compatible |
 
 ---
 
 ## Evaluation Rubric
 
-| Dimension | Weight |
-|---|---|
-| Shipped production products | 30% |
-| Technical depth | 25% |
-| Business thinking | 20% |
-| Speed of execution | 15% |
-| Communication clarity | 10% |
+The agent scores candidates across five dimensions, weighted by importance:
+
+| Dimension | Weight | What it looks for |
+|---|---|---|
+| Shipped production products | 30% | Real products with real users — professional launches (resume), OSS libraries, live apps, App Store listings |
+| Technical depth | 25% | Range of languages, repo quality, complexity of work, GitHub activity at scale |
+| Business thinking | 20% | Metrics, user outcomes, understanding of why they built what they built |
+| Speed of execution | 15% | Recent shipping — job history, GitHub activity in last 90 days |
+| Communication clarity | 10% | Clear resume, specific project descriptions, confident writing |
 
 Pass threshold: **65/100** (configurable via `PASS_THRESHOLD` env var).
 
----
-
-## Setup
-
-### 1. Clone and install
-
-```bash
-git clone <repo-url>
-cd candidate-evaluator
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Configure environment
-
-```bash
-cp .env.example .env
-# Fill in your keys
-```
-
-### 3. Postmark setup
-
-1. Create a free account at [postmarkapp.com](https://postmarkapp.com)
-2. Create a Server → go to **Inbound** tab → copy your inbound email address
-3. Set the inbound webhook URL to: `https://your-railway-app.up.railway.app/webhook/inbound`
-4. Verify a sender email for outbound (Settings → Sender Signatures)
-5. Copy the Server API Token → set as `POSTMARK_SERVER_TOKEN`
-
-### 4. Run locally
-
-```bash
-uvicorn main:app --reload --port 8000
-```
-
-### 5. Test locally
-
-```bash
-# Without a PDF (tests edge cases only)
-python tests/test_webhook.py
-
-# With a real PDF resume
-python tests/test_webhook.py /path/to/resume.pdf
-```
-
----
-
-## Deployment (Railway)
-
-```bash
-# Install Railway CLI
-npm install -g @railway/cli
-
-# Deploy
-railway login
-railway init
-railway up
-
-# Set environment variables
-railway variables set POSTMARK_SERVER_TOKEN=...
-railway variables set POSTMARK_FROM_EMAIL=...
-railway variables set ANTHROPIC_API_KEY=...
-railway variables set GITHUB_TOKEN=...
-```
-
-Once deployed, update your Postmark inbound webhook URL to the Railway domain.
+**Calibration decisions made:**
+- Resume work experience is treated as equal signal to GitHub — the brief explicitly lists both. A PM-builder with ₹4Cr revenue products on their resume shouldn't fail because they don't have personal GitHub repos.
+- Hard score floors are applied in code (not in Claude's judgment) for accounts with 10,000+ followers AND 100+ repos — peer-validated builder signals that can't be gamed by prompt reasoning.
+- Accounts with high followers but very few repos (< 15) are flagged as likely tutorial/mascot accounts and scored on repo quality only.
 
 ---
 
 ## Edge Cases Handled
 
-| Scenario | Behavior |
+| Scenario | Behaviour |
 |---|---|
-| No resume attached | Replies asking for PDF resume |
-| No GitHub link | Replies asking for GitHub URL |
-| Scanned/image PDF | Replies asking for text-based PDF |
-| Invalid/missing GitHub profile | Notes it, evaluates on remaining signals |
-| Private GitHub (no public repos) | Scores low on technical dimension, noted in evaluation |
-| Portfolio URL inaccessible | Notes it, evaluates on remaining signals |
-| Duplicate application | Replies: "We already have your application on file" |
+| Missing resume | Asks for it; saves as `incomplete` so they can resubmit |
+| Missing GitHub link | Asks for it; allows resubmission |
+| Scanned / image PDF | Falls back to Claude Vision automatically |
+| DOCX or Word document | Parsed via python-docx |
+| Image of resume (PNG/JPG) | Parsed via Claude Vision |
+| Google Drive / Dropbox link instead of attachment | Tries to fetch if public; if gated, gives specific error explaining to attach directly |
+| GitHub repo URL instead of profile URL | Extracts username from repo path correctly |
+| GitHub URL with trailing punctuation | Stripped correctly before lookup |
+| HTML-only email (no plain text) | Extracts href URLs before stripping tags |
+| Invalid / non-existent GitHub profile | Notes the error, evaluates on remaining signals |
+| Duplicate application (already pass/fail) | Blocked with a polite reply |
+| Incomplete → resubmit | Allowed; only pass/fail blocks resubmission |
 | Non-application email | Replies explaining this inbox is for applications only |
-
----
-
-## Admin
-
-View all processed applications:
-```
-GET /applications
-```
+| Claude returns malformed JSON | Extracts JSON from response defensively; replies asking to resubmit on failure |
+| Email delivery failure | Evaluation saved to DB regardless; email failure logged separately |
 
 ---
 
 ## What I'd Improve With More Time
 
-1. **Postmark webhook signature verification** — currently skipped. Should validate the `X-Postmark-Signature` header to prevent spoofed webhooks.
+**1. GitHub GraphQL for richer signals**
+The REST API doesn't expose pinned repos — what a candidate chooses to highlight is a strong signal. GraphQL would also give contribution graphs and organisation membership, which matters for engineers whose best work is in private company repos.
 
-2. **GitHub GraphQL for pinned repos** — the REST API doesn't expose pinned repos. GraphQL would give richer signal on what the candidate considers their best work.
+**2. Smarter portfolio parsing**
+Current implementation does basic text extraction. Many strong candidates link to Notion pages, Product Hunt launches, or App Store listings — structured parsers for these platforms would extract far better signal than raw text scraping.
 
-3. **Smarter portfolio parsing** — currently basic text extraction. Could do deeper parsing for specific platforms (Notion, Behance, Product Hunt) to extract structured project data.
+**3. Re-application window instead of permanent block**
+Right now a pass/fail decision blocks resubmission forever. A 90-day cooldown is more humane and reflects how real hiring works — people improve.
 
-4. **Re-application window** — currently one application per email address forever. A 90-day cooldown would be more humane.
+**4. Webhook signature verification**
+Postmark signs webhooks with an HMAC header. Currently not verified — any POST to `/webhook/inbound` is processed. Low risk at this scale, but a production system should validate it.
 
-5. **Admin dashboard** — a simple UI to review evaluations, override decisions, and see scoring breakdowns.
+**5. Persistent storage**
+SQLite on Render's free tier is ephemeral — data is lost on restart. A hosted Postgres (Supabase free tier, or Render's managed Postgres) would make this production-grade without meaningful cost.
 
-6. **Retry logic** — if Claude or GitHub API is temporarily down, silently fails. Should queue and retry.
+**6. Async Claude client**
+The evaluator currently uses the sync `anthropic.Anthropic` client inside an async FastAPI route. It works (background tasks run in a thread pool), but the async client would be cleaner and avoid potential blocking.
 
 ---
 
 ## Trade-offs Made Consciously
 
-- **SQLite over Postgres** — sufficient for this scale, zero setup. Would swap for Postgres in production.
-- **No webhook signature verification** — saved time, documented as known gap.
-- **Best-effort portfolio scraping** — some sites block scrapers. Chose to not fail the application, just note it in evaluation.
-- **Background task over queue** — FastAPI's `BackgroundTasks` works for low volume. Would use Celery + Redis at scale.
-- **Weighted total recomputed server-side** — don't trust Claude's math. Always recompute from scores + weights.
+**SQLite over Postgres**
+Zero setup, zero cost, works for this volume. Ephemeral on Render free tier — documented as a known gap, acceptable for a 5-day build.
+
+**Background tasks over a job queue**
+FastAPI's `BackgroundTasks` is sufficient for low volume and has zero infrastructure overhead. At scale, Celery + Redis or a proper queue would be the right call.
+
+**pdfplumber → Claude Vision fallback (not OCR)**
+tesseract + poppler requires system binaries that are painful to install on managed hosting. Claude Vision handles scanned PDFs, images, and DOCX in one unified path with no system dependencies — simpler, more robust, slightly higher token cost per eval.
+
+**Score floors in code, not in prompts**
+Early versions relied purely on prompt instructions to score prolific OSS authors correctly. Claude's reasoning about name mismatches and its "consumer app" bias made this inconsistent. Hard floors based on verifiable signals (followers + repo count) applied in Python are deterministic and can't be overridden by prompt reasoning.
+
+**Resume work experience = valid as GitHub signals**
+The brief explicitly lists "work experience" as a signal equal to GitHub activity. A PM-builder with professional product launches documented on their resume shouldn't be penalised for low personal GitHub activity. Trade-off: resume claims are unverifiable, GitHub is ground truth. Mitigated by the `technical_ownership` field which explicitly flags whether the candidate wrote code personally.
+
+**Brevo over Postmark for outbound**
+Postmark doesn't allow personal Gmail addresses as verified sender signatures. Brevo allows individual email verification and has a generous free tier.
+
+---
+
+## Local Setup
+
+```bash
+git clone https://github.com/vishvesh245/candidate-evaluator-agent.git
+cd candidate-evaluator-agent
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env  # fill in your keys
+uvicorn main:app --reload --port 8000
+```
+
+**Required env vars:**
+```
+POSTMARK_SERVER_TOKEN=
+BREVO_API_KEY=
+ANTHROPIC_API_KEY=
+GITHUB_TOKEN=
+PASS_THRESHOLD=65          # optional, default 65
+TEST_EMAIL_OVERRIDE=       # optional: route all emails to one address for testing
+```
+
+## Running Tests
+
+```bash
+python tests/run_eval_tests.py /path/to/resume.pdf
+```
+
+Runs 13 test cases: E1–E7 (edge cases), Q1–Q5 (evaluation quality), S1 (resilience). All tests hit the local server at `localhost:8000`. Switch `BASE_URL` in the script to test against the live deployment.
+
+## Admin Dashboard
+
+```
+GET /applications        → HTML dashboard with scores, signals, response times
+GET /applications/data   → JSON (programmatic access)
+```

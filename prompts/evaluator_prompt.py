@@ -120,7 +120,14 @@ def _format_github(gh: dict) -> str:
     total_stars = gh.get("total_stars", 0)
     public_repos = gh.get("public_repos", 0)
 
-    if followers >= 1000 or total_stars >= 5000 or public_repos >= 100:
+    if public_repos < 15 and (followers >= 1000 or total_stars >= 1000):
+        lines.append(
+            f"\n⚠️ SCORING NOTE: This profile has high followers ({followers:,}) or stars ({total_stars:,}) "
+            f"but only {public_repos} public repos. This pattern indicates a demo/mascot/tutorial account "
+            f"(e.g. GitHub's own octocat) or someone who deleted their repos. High follower counts from "
+            f"non-builder accounts should NOT be treated as builder signals. Score on actual repo quality only."
+        )
+    elif followers >= 1000 or total_stars >= 5000 or public_repos >= 100:
         lines.append(
             f"\n⚠️ SCORING NOTE: This profile has {followers:,} followers, {total_stars:,} total stars, "
             f"and {public_repos} public repos. This level of GitHub presence is evidence of substantial "

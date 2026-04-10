@@ -4,11 +4,11 @@ from models.schemas import ParsedApplication, Attachment
 
 
 GITHUB_PATTERN = re.compile(
-    r"https?://(?:www\.)?github\.com/([a-zA-Z0-9_-]+)/?(?:\s|$|\"|\n|>|[.,;)])",
+    r"https?://(?:www\.)?github\.com/([a-zA-Z0-9_-]+)(?:/[^\s\"'\n>.,;)]*)*/?(?:\s|$|\"|\n|>|[.,;)])",
     re.IGNORECASE,
 )
 GITHUB_BARE_PATTERN = re.compile(
-    r"(?:^|\s)github\.com/([a-zA-Z0-9_-]+)/?(?:\s|$|[.,;)])",
+    r"(?:^|\s)github\.com/([a-zA-Z0-9_-]+)(?:/[^\s.,;)]*)*/?(?:\s|$|[.,;)])",
     re.IGNORECASE,
 )
 URL_PATTERN = re.compile(

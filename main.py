@@ -208,6 +208,13 @@ async def test_reset():
     return {"status": "reset"}
 
 
+@app.post("/admin/reset-all")
+async def admin_reset_all():
+    """Wipe ALL records from the DB — clean slate for demo prep."""
+    await database.delete_all_records()
+    return {"status": "wiped", "message": "All records deleted."}
+
+
 @app.get("/applications/data")
 async def list_applications_json():
     apps = await database.get_all_applications()

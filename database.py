@@ -86,6 +86,13 @@ async def delete_test_records():
         await db.commit()
 
 
+async def delete_all_records():
+    """Wipe every row — clean slate for demo prep."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM applications")
+        await db.commit()
+
+
 async def get_all_applications() -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row

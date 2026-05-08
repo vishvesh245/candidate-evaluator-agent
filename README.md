@@ -1,4 +1,4 @@
-# Candidate Evaluator — Plum Builder's Residency
+# Candidate Evaluator — Company's Builder Residency
 
 An AI agent that evaluates job applications over email. Candidates send their resume, GitHub profile, and portfolio link to an inbound email address. The agent extracts signals, scores them against a rubric, and replies with a pass or fail decision — automatically, within 60 seconds.
 

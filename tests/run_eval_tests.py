@@ -101,7 +101,7 @@ async def run_tests(pdf_path: str):
     payload = make_payload(
         email="e1.missing.resume@test.com",
         name="Test E1",
-        subject="Application to Plum Builder's Residency",
+        subject="Application to Company's Builder Residency",
         body="Hi, applying!\nGitHub: https://github.com/vishvesh245\nPortfolio: https://vishvesh.me",
     )
     await send(payload)
@@ -191,7 +191,7 @@ async def run_tests(pdf_path: str):
     payload = make_payload(
         email="e6.duplicate@test.com",
         name="Test E6",
-        subject="Application to Plum Builder's Residency",
+        subject="Application to Company's Builder Residency",
         body="GitHub: https://github.com/vishvesh245\nPortfolio: https://vishvesh.me",
         pdf_content=pdf,
     )
@@ -252,7 +252,7 @@ async def run_tests(pdf_path: str):
     payload = make_payload(
         email="q1.strong@test.com",
         name="Sindre Sorhus",
-        subject="Application to Plum Builder's Residency",
+        subject="Application to Company's Builder Residency",
         body="GitHub: https://github.com/sindresorhus\nPortfolio: https://sindresorhus.com",
         pdf_content=pdf,
     )
@@ -274,7 +274,7 @@ async def run_tests(pdf_path: str):
     payload = make_payload(
         email="q2.weak@test.com",
         name="Weak Candidate",
-        subject="Application to Plum Builder's Residency",
+        subject="Application to Company's Builder Residency",
         # Using a GitHub with mostly forked/tutorial repos
         body="GitHub: https://github.com/octocat\nPortfolio: https://github.com/octocat",
         pdf_content=pdf,
@@ -294,7 +294,7 @@ async def run_tests(pdf_path: str):
     payload = make_payload(
         email="q3.pm.only@test.com",
         name="Vishvesh Pandya",
-        subject="Application to Plum Builder's Residency",
+        subject="Application to Company's Builder Residency",
         body="GitHub: https://github.com/vishvesh245\nPortfolio: https://vishvesh.me",
         pdf_content=pdf,
     )
@@ -313,7 +313,7 @@ async def run_tests(pdf_path: str):
     payload = make_payload(
         email="q4.invalid.github@test.com",
         name="Test Q4",
-        subject="Application to Plum Builder's Residency",
+        subject="Application to Company's Builder Residency",
         body="GitHub: https://github.com/thispersondefinitelydoesnotexist99999\nPortfolio: https://vishvesh.me",
         pdf_content=pdf,
     )
@@ -332,7 +332,7 @@ async def run_tests(pdf_path: str):
     payload = make_payload(
         email="q5.no.portfolio@test.com",
         name="Test Q5",
-        subject="Application to Plum Builder's Residency",
+        subject="Application to Company's Builder Residency",
         body="GitHub: https://github.com/vishvesh245",
         pdf_content=pdf,
     )
@@ -350,7 +350,7 @@ async def run_tests(pdf_path: str):
     payload = make_payload(
         email="s1.delivery.fail@test.com",
         name="Test S1",
-        subject="Application to Plum Builder's Residency",
+        subject="Application to Company's Builder Residency",
         body="GitHub: https://github.com/vishvesh245\nPortfolio: https://vishvesh.me",
         pdf_content=pdf,
     )

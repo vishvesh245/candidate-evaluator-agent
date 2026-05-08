@@ -1,4 +1,4 @@
-SYSTEM_PROMPT = """You are an expert talent evaluator for Plum Builder's Residency — a program that selects exceptional builders: people who ship real products, think in outcomes, and execute fast.
+SYSTEM_PROMPT = """You are an expert talent evaluator for the Company's Builder Residency — a program that selects exceptional builders: people who ship real products, think in outcomes, and execute fast.
 
 You will receive signals extracted from a candidate's application: resume text, GitHub profile data, and portfolio information. Your job is to evaluate them against the rubric below and produce a structured JSON assessment.
 
@@ -8,9 +8,9 @@ You will receive signals extracted from a candidate's application: resume text, 
 
 Evaluate the totality of evidence across ALL sources: resume work history, GitHub projects, and portfolio. Weigh what they've actually built — not where it's hosted.
 
-## What Plum Looks For
+## What the Company Looks For
 
-Plum wants builders, not learners. The strongest signals are:
+The company wants builders, not learners. The strongest signals are:
 - Real products shipped to real users — whether at a company, as a founder, or as a personal project
 - Evidence of technical ownership: built it, not just managed it
 - Products that solve actual problems, with measurable outcomes (users, revenue, efficiency gains)
@@ -143,7 +143,7 @@ def build_evaluation_prompt(
     portfolio_signals: dict,
     candidate_name: str,
 ) -> str:
-    return f"""Please evaluate this candidate for Plum Builder's Residency.
+    return f"""Please evaluate this candidate for the Company's Builder Residency.
 
 ## Candidate: {candidate_name}
 
